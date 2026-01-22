@@ -90,6 +90,7 @@ parse_args() {
 	esac
 
 }
+
 # this function wraps all the destructive operations
 # if a curl|bash cuts off the end of the script due to
 # network, either nothing will happen or will syntax error
@@ -112,6 +113,7 @@ execute() {
 	done
 	rm -rf "${tmpdir}"
 }
+
 get_binaries() {
 	case "$PLATFORM" in
 	darwin/amd64) BINARIES="$BINARY" ;;
@@ -125,6 +127,7 @@ get_binaries() {
 		;;
 	esac
 }
+
 tag_to_version() {
 	if [ -z "${TAG}" ]; then
 		log_info "checking GitHub for latest tag"
@@ -140,6 +143,7 @@ tag_to_version() {
 	TAG="$REALTAG"
 	VERSION=${TAG#v}
 }
+
 adjust_format() {
 	# change format (tar.gz or zip) based on OS
 	case ${OS} in
@@ -147,6 +151,7 @@ adjust_format() {
 	esac
 	true
 }
+
 adjust_os() {
 	# adjust archive name based on OS
 	case ${OS} in
@@ -156,12 +161,22 @@ adjust_os() {
 	esac
 	true
 }
+
 adjust_arch() {
 	# adjust archive name based on ARCH
 	case ${ARCH} in
 	386) ARCH=32bit ;;
 	amd64) ARCH=64bit ;;
 	darwin) ARCH=macOS ;;
+	esac
+	true
+}
+
+adjust_libc() {
+	# adjust archive name based on LIBC
+	case ${LIBC} in
+	glibc) LIBC="" ;;
+	libmusl) LIBC="_libmusl" ;;
 	esac
 	true
 }
@@ -174,20 +189,25 @@ https://github.com/client9/shlib/blob/master/LICENSE.md
 but credit (and pull requests) appreciated.
 ------------------------------------------------------------------------
 EOF
+
 is_command() {
 	command -v "$1" >/dev/null
 }
+
 echoerr() {
 	echo "$@" 1>&2
 }
+
+# shellcheck disable=SC2329
 log_prefix() {
-	# shellcheck disable=SC2317
 	echo "$0"
 }
+
 _logp=6
 log_set_priority() {
 	_logp="$1"
 }
+
 log_priority() {
 	if test -z "$1"; then
 		echo "$_logp"
@@ -195,6 +215,7 @@ log_priority() {
 	fi
 	[ "$1" -le "$_logp" ]
 }
+
 log_tag() {
 	case $1 in
 	0) echo "emerg" ;;
@@ -208,22 +229,27 @@ log_tag() {
 	*) echo "$1" ;;
 	esac
 }
+
 log_debug() {
 	log_priority 7 || return 0
 	echoerr "$(log_prefix)" "$(log_tag 7)" "$@"
 }
+
 log_info() {
 	log_priority 6 || true
 	echoerr "$(log_prefix)" "$(log_tag 6)" "$@"
 }
+
 log_err() {
 	log_priority 3 || true
 	echoerr "$(log_prefix)" "$(log_tag 3)" "$@"
 }
+
 log_crit() {
 	log_priority 2 || true
 	echoerr "$(log_prefix)" "$(log_tag 2)" "$@"
 }
+
 uname_os() {
 	os=$(uname -s | tr '[:upper:]' '[:lower:]')
 	case "$os" in
@@ -233,6 +259,7 @@ uname_os() {
 	esac
 	echo "$os"
 }
+
 uname_arch() {
 	arch=$(uname -m)
 	case $arch in
@@ -247,6 +274,7 @@ uname_arch() {
 	esac
 	echo "${arch}"
 }
+
 uname_os_check() {
 	os=$(uname_os)
 	case "$os" in
@@ -265,6 +293,7 @@ uname_os_check() {
 	log_crit "uname_os_check '$(uname -s)' got converted to '$os' which is not a GOOS value. Please file bug at https://github.com/client9/shlib"
 	return 1
 }
+
 uname_arch_check() {
 	arch=$(uname_arch)
 	case "$arch" in
@@ -286,6 +315,7 @@ uname_arch_check() {
 	log_crit "uname_arch_check '$(uname -m)' got converted to '$arch' which is not a GOARCH value.  Please file bug report at https://github.com/client9/shlib"
 	return 1
 }
+
 untar() {
 	tarball=$1
 	case "${tarball}" in
@@ -298,6 +328,7 @@ untar() {
 		;;
 	esac
 }
+
 http_download_curl() {
 	local_file=$1
 	source_url=$2
@@ -313,6 +344,7 @@ http_download_curl() {
 	fi
 	return 0
 }
+
 http_download_wget() {
 	local_file=$1
 	source_url=$2
@@ -323,6 +355,7 @@ http_download_wget() {
 		wget -q --header "$header" -O "$local_file" "$source_url"
 	fi
 }
+
 http_download() {
 	log_debug "http_download $2"
 	if is_command curl; then
@@ -335,6 +368,7 @@ http_download() {
 	log_crit "http_download unable to find wget or curl"
 	return 1
 }
+
 http_copy() {
 	tmp=$(mktemp)
 	http_download "${tmp}" "$1" "$2" || return 1
@@ -342,6 +376,7 @@ http_copy() {
 	rm -f "${tmp}"
 	echo "$body"
 }
+
 github_release() {
 	owner_repo=$1
 	version=$2
@@ -353,6 +388,7 @@ github_release() {
 	test -z "$version" && return 1
 	echo "$version"
 }
+
 hash_sha256() {
 	TARGET=${1:-/dev/stdin}
 	if is_command gsha256sum; then
@@ -372,6 +408,7 @@ hash_sha256() {
 		return 1
 	fi
 }
+
 hash_sha256_verify() {
 	TARGET=$1
 	checksums=$2
@@ -391,6 +428,7 @@ hash_sha256_verify() {
 		return 1
 	fi
 }
+
 cat /dev/null <<EOF
 ------------------------------------------------------------------------
 End of functions from https://github.com/client9/shlib
@@ -403,6 +441,7 @@ FORMAT=tar.gz
 OS=$(uname_os)
 ARCH=$(uname_arch)
 PREFIX="$OWNER/$REPO"
+LIBC=$(ldd --version 2>&1 | grep -qi musl && printf 'libmusl' || printf 'glibc')
 
 # use in logging routines
 log_prefix() {
@@ -427,9 +466,11 @@ adjust_os
 
 adjust_arch
 
-log_info "found version: ${VERSION} for ${TAG}/${OS}/${ARCH}"
+log_info "found version: ${VERSION} for ${TAG}/${OS}/${LIBC}/${ARCH}"
 
-NAME=${PROJECT_NAME}_${VERSION}-${OS}${FLAVOR}_${ARCH}
+adjust_libc
+
+NAME=${PROJECT_NAME}_${VERSION}-${OS}${FLAVOR}${LIBC}_${ARCH}
 TARBALL=${NAME}.${FORMAT}
 TARBALL_URL=${GITHUB_DOWNLOAD}/${TAG}/${TARBALL}
 CHECKSUM=checksums.txt
