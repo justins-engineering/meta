@@ -172,12 +172,13 @@ adjust_arch() {
 	true
 }
 
-adjust_libc() {
-	# adjust archive name based on LIBC
-	case ${LIBC} in
-	glibc) LIBC="" ;;
-	libmusl) LIBC="_libmusl" ;;
-	esac
+adjust_libmusl() {
+	# adjust archive name based on LIBMUSL
+	if [ -n "$LIBMUSL" ] && [ -n "$FLAVOR" ]; then
+		LIBMUSL="_libmusl"
+	else
+		LIBMUSL=""
+	fi
 	true
 }
 
@@ -316,6 +317,14 @@ uname_arch_check() {
 	return 1
 }
 
+libmusl_check() {
+	if [ "$OS" = "linux" ] && command -v ldd >/dev/null 2>&1; then
+		ldd --version 2>&1 | grep -qi musl
+	else
+		return 1
+	fi
+}
+
 untar() {
 	tarball=$1
 	case "${tarball}" in
@@ -441,7 +450,12 @@ FORMAT=tar.gz
 OS=$(uname_os)
 ARCH=$(uname_arch)
 PREFIX="$OWNER/$REPO"
-LIBC=$(ldd --version 2>&1 | grep -qi musl && printf 'libmusl' || printf 'glibc')
+
+if libmusl_check; then
+	LIBMUSL="/libmusl"
+else
+	LIBMUSL=""
+fi
 
 # use in logging routines
 log_prefix() {
@@ -466,11 +480,11 @@ adjust_os
 
 adjust_arch
 
-log_info "found version: ${VERSION} for ${TAG}/${OS}/${LIBC}/${ARCH}"
+log_info "found version: ${VERSION} for ${TAG}/${OS}${LIBMUSL}/${ARCH}"
 
-adjust_libc
+adjust_libmusl
 
-NAME=${PROJECT_NAME}_${VERSION}-${OS}${FLAVOR}${LIBC}_${ARCH}
+NAME=${PROJECT_NAME}_${VERSION}-${OS}${FLAVOR}${LIBMUSL}_${ARCH}
 TARBALL=${NAME}.${FORMAT}
 TARBALL_URL=${GITHUB_DOWNLOAD}/${TAG}/${TARBALL}
 CHECKSUM=checksums.txt
